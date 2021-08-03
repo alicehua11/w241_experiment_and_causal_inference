@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 ## Libraries
@@ -159,7 +159,7 @@ After running the full model, we found none of the covariates had a significant 
 
 Let's organize the results in an organized comparison.
 
-```{r stargazer three models}
+```{r stargazer three models, results='asis'}
 # stargazer of all models
 stargazer(model_1, model_2, model_3,
   # type="text",
@@ -168,7 +168,7 @@ column.labels = c("F","F+P","F+P+F*P"),
 dep.var.labels   = "Correct responses",
 covariate.labels = c("Fake information", "Positive sentiment", "Fake:Positive"),
 # add.lines = list(c("optimized model", "Yes", "Yes","Yes")),
-header=FALSE, type='text',
+header=FALSE, type='latex',
 title = "Regression results"
 )
 ```
@@ -210,15 +210,9 @@ Entertainment, politics and health topics seem to have a stronger effect than en
 
 ## Descriptive statistics
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Missing 
 
 ## Randomization check
 
-
+Missing
 
