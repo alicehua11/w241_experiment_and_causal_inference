@@ -122,7 +122,7 @@ non_compliers_fp<-0
 paste("We found",non_compliers_fp," non-compliers")
 
 
-
+                        
 ## Check for attrition
 # People who received the treatment and then stopped
 attrition_count <- length(d[finished=="False" & tweet_submit_time!=""]$id)
