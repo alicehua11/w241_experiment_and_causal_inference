@@ -1,5 +1,5 @@
 ---
-title: "w41_tweets_facts_sentiment_FN"
+title: "w41_tweets_facts_sentiment_TP"
 author: "Arriaga, Hue, Khural, Moran"
 date: "July 31, 2021"
 output: html_document
@@ -11,6 +11,7 @@ library(foreign)
 library(tidyverse)
 library(dplyr)
 library(readr)
+library(ggplot2)
 
 
 # Set working directory
@@ -126,29 +127,32 @@ paste("We found",non_compliers_fp," non-compliers")
 ## Check for attrition
 # People who received the treatment and then stopped
 attrition_count <- length(d[finished=="False" & tweet_submit_time!=""]$id)
+d[,attrition:= ifelse((finished=="False" & tweet_submit_time!=""), yes=1,no=0)]
+d[,dropouts:= ifelse((finished=="False" & tweet_submit_time==""), yes=1,no=0)]
 
 # People who received the treatment
 total_responses <- length(d[tweet_submit_time!=""]$id)
 
-attrition_proportion=attrition_count/total_responses
+attrition_proportion=attrition_count/(total_responses+attrition_count)
 paste("We found a ", round(attrition_proportion*100, digits = 2),"% attrition.")
 
-# Remove respondents that dropped (attrition + drop out)
-respondent_drop <- which(d[,finished=="False"])
+# Remove respondents that dropped (drop out)
+respondent_drop <- which(d[,dropouts==1])
 d <- d[-respondent_drop,]
 
 # Save emails of raffle respondents
 # write.csv(d$email,"../data/interim/tp_emails.csv", row.names = FALSE)
 # write.csv(d$email,"../data/interim/tn_emails.csv", row.names = FALSE)
 # write.csv(d$email,"../data/interim/fp_emails.csv", row.names = FALSE)
-write.csv(d$email,"../data/interim/fn_emails.csv", row.names = FALSE)
+# write.csv(d$email,"../data/interim/fn_emails.csv", row.names = FALSE)
 
 # Data type conversion
 d$start_date <- as.Date(d$start_date, format = "%Y-%m-%d %H:%M:%s")
 d$end_date <- as.Date(d$end_date, format = "%Y-%m-%d %H:%M:%s")
-# d$tweet_submit_time <- as.integer(d$tweet_submit_time)
-# d$test_submit_time <- as.integer(d$test_submit_time)
+d$tweet_submit_time <- as.integer(d$tweet_submit_time)
+d$test_submit_time <- as.integer(d$test_submit_time)
 
+length(d[finished=="False"])
 ```
 
 We can also see a histogram of time looking at the tweets and time responding the test.
@@ -177,7 +181,7 @@ colnames(d)
 cols_to_remove <- c("start_date","end_date",
                     "finished","finished_date","id","email",
                     "tweet_first_click_time","tweet_last_click_time","tweet_click_count",
-                    "test_first_click_time","test_last_click_time","test_click_count")
+                    "test_first_click_time","test_last_click_time","test_click_count","dropouts")
 
 cols_to_drop_ix<-which(colnames(d) %in% cols_to_remove)
 
@@ -188,12 +192,12 @@ Let's include the treatment columns to the data.
 
 ```{r}
 ## IMPORTANT Adding factors
-# d$truth<- as.factor("fact")
-d$truth<- as.factor("fake")
+# d$truth<- as.factor("true")
+d$truth<- as.factor("false")
 # d$sentiment<- as.factor("positive")
 d$sentiment<- as.factor("negative")
 
-# Correct answers for test: FACT
+# Correct answers for test: True information
 # d[ , bin_stimulus := ifelse(stimulus == "Green House Gases", yes = 1, no = 0)]
 # d[ , bin_georgians := ifelse(georgians == "None of the above", yes = 1, no = 0)]
 # d[ , bin_energy := ifelse(energy == "Natural Gas", yes = 1, no = 0)]
@@ -203,7 +207,7 @@ d$sentiment<- as.factor("negative")
 # d[ , bin_election := ifelse(election == "2024", yes = 1, no = 0)]
 
 
-# # Correct answers for test: FAKE
+# # Correct answers for test: False information
 d[ , bin_stimulus := ifelse(stimulus == "Green House Gases", yes = 1, no = 0)]
 d[ , bin_georgians := ifelse(georgians == "70", yes = 1, no = 0)]
 d[ , bin_energy := ifelse(energy == "Wind", yes = 1, no = 0)]
@@ -218,7 +222,7 @@ d$total_correct <- d%>% select(c("bin_stimulus", "bin_georgians","bin_energy","b
 We can see the distribution of correct answers.
 
 ```{r}
-h3 <- hist(d$total_correct,
+h3 <- hist(d[attrition!=1]$total_correct,
      main = "Correct answers distribution (max 7)",
      xlab = "correct answers", 
      breaks = length(d$total_correct)/4)
@@ -238,11 +242,13 @@ Finally, we can stack all of the individual files.
 
 ```{r}
 files <- c("tp_data.csv","tn_data.csv","fp_data.csv","fn_data.csv")
+#Ordered in order to stack them based on factos (False=0, Positive=0, True=1, Negative=1)
 
-df_fn<-data.table::fread("../data/interim/fn_data.csv")
 df_fp<-data.table::fread("../data/interim/fp_data.csv")
-df_tn<-data.table::fread("../data/interim/tn_data.csv")
+df_fn<-data.table::fread("../data/interim/fn_data.csv")
 df_tp<-data.table::fread("../data/interim/tp_data.csv")
+df_tn<-data.table::fread("../data/interim/tn_data.csv")
+
 
 df<-rbind(df_tp,df_tn,df_fp,df_fn)
 

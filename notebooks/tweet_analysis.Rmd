@@ -39,8 +39,8 @@ Let's load the data.
 
 ```{r load the data}
 df<-data.table::fread("../data/processed/tweets_data.csv")
-df$truth_f <- as.factor(df$truth)
-df$sentiment_f <- as.factor(df$sentiment)
+df$truth_f <- factor(df$truth, levels=c("FALSE","TRUE"))
+df$sentiment_f <- factor(df$sentiment, levels = c("positive","negative"))
 
 # Robust standard error
 rse <- function(model) { 
@@ -50,42 +50,90 @@ rse <- function(model) {
 
 ## Experiment Design
 
-
-
 Our main goal is to evaluate if truthfulness is a variable that has a short term impact in memory. We can perform an hypotesis testing comparing all positive tweets to all negative tweers.
 
 Based on the literature, we expect that tweets with fake information are less likely to be remembered. In regards to sentiment, @XIE201773 found that negative emotions enchance the visual long-term memory. For the power analysis estimation, we will consider the base group to be the treatment with true and negative emotion content. This will be compared with the treatment with the lowest sample size.
 
-## Power analysis
-
-```{r finding base treatment}
+```{r setup factors}
 # Base group: TN
-
 table1<- table(df$truth_f,df$sentiment_f)
 table1
 
-# Base group n=29, the rest all have the same size
-# Let's see the least optimistic one: smaller effect
+# We adjusted the levels based on the literature
+# Confirmation check
 
-# This line outputs "fact" "fake", meaning fact=0, fake=1
+# This line outputs "False" "true", meaning fake=0, fact=1
 levels(df$truth_f)
 
-# Now for sentiment: negative=0, positive=1
+# Now for sentiment: positive=0, negative=1
 levels(df$sentiment_f)
+```
 
-# The level values are consistent with our literatue (base=TN)
-tp<- subset(df, truth_f=="fact" & sentiment_f=="positive")
-tn<- subset(df, truth_f=="fact" & sentiment_f=="negative")
-fp<- subset(df, truth_f=="fake" & sentiment_f=="positive")
-fn<- subset(df, truth_f=="fake" & sentiment_f=="negative")
+
+# Attrition
+
+We encountered attrition in the treatments TP (10%) and TN (3%). We followed @gerber2012field extreme bounds to gauge the potential consequences of attrition.
+
+```{r extreme values}
+
+p <- ggplot(df[attrition!=1], aes(x=interaction(sentiment_f,truth_f), 
+                                  y=total_correct,
+                                  fill=sentiment_f)) + 
+  geom_violin()+ 
+  labs(title="Treatment distribution",x="Treatment", y = "Correct answers (max 7)")+
+  geom_boxplot(width=0.1) +
+  guides(fill=guide_legend(title = "Sentiment"))+
+  scale_fill_brewer(palette = "Oranges")+
+  theme_minimal()
+p
+
+```
+
+We believe that filling attrition metrics with lower bound will reduce the effect size between treatments.
+
+```{r}
+df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="positive")]$total_correct <-df[(attrition==0 & truth_f=="TRUE" & sentiment_f=="positive")]$total_correct %>% max()
+
+df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="negative")]$total_correct <-
+df[(attrition==0 & truth_f=="TRUE" & sentiment_f=="negative")]$total_correct %>% min()
+
+# Check that lower bounds were added
+df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="positive")]$total_correct 
+df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="negative")]$total_correct
+
+```
+
+
+## Power analysis
+
+```{r finding base treatment}
+
+
+# Let's see the least optimistic one: smaller effect
+# The level values are consistent with our literatue (base=Fake-Positive)
+tp<- subset(df, truth_f=="TRUE" & sentiment_f=="positive")
+tn<- subset(df, truth_f=="TRUE" & sentiment_f=="negative")
+fp<- subset(df, truth_f=="FALSE" & sentiment_f=="positive")
+fn<- subset(df, truth_f=="FALSE" & sentiment_f=="negative")
 
 # Let's compare the coehn's do to see which one has the smaller effect size
-coehnd_tn_tp <- cohen.d(tn$total_correct,tp$total_correct)
-coehnd_tn_tp
-coehnd_tn_fp <- cohen.d(tn$total_correct,fp$total_correct)
-coehnd_tn_fp
-coehnd_tn_fn <- cohen.d(tn$total_correct,fn$total_correct)
-coehnd_tn_fn
+# coehnd_tn_tp <- cohen.d(tn$total_correct,tp$total_correct)
+# coehnd_tn_tp
+# coehnd_tn_fp <- cohen.d(tn$total_correct,fp$total_correct)
+# coehnd_tn_fp
+# coehnd_tn_fn <- cohen.d(tn$total_correct,fn$total_correct)
+# coehnd_tn_fn
+
+# Baseline Fake-Positive with n=26
+coehnd_fp_tn <- cohen.d(fp$total_correct,tn$total_correct)
+coehnd_fp_tn
+
+coehnd_fp_fn <- cohen.d(fp$total_correct,fn$total_correct)
+coehnd_fp_fn
+
+coehnd_fp_tp <- cohen.d(fp$total_correct,tp$total_correct)
+coehnd_fp_tp
+
 ```
 
 We selected the comparison between treatment TN and FN because they show a small effect size (d=-0.26).
@@ -93,10 +141,43 @@ We selected the comparison between treatment TN and FN because they show a small
 ```{r power analysis}
 
 # We can perform a power test given the effect sizes, samples
-pwr.t2n.test(n1 = length(tn$truth) , n2= length(fn$truth), d = coehnd_tn_fn$estimate, sig.level = .95)
+# Option one = check by smallest effect size
+pwr.t2n.test(n1 = length(fp$truth) , n2= length(tp$truth), d = coehnd_fp_tp$estimate, sig.level = .95)
+
+# Option two = check by smallest sample size, then effect size
+pwr.t2n.test(n1 = length(fp$truth) , n2= length(fn$truth), d = coehnd_fp_fn$estimate, sig.level = .95)
+
+```
+
+
+```{r}
+# Plot power comparison by treatment
+cohens <- data.frame(
+  treatment = c("FP-TN","FP-FN","FP-TP"),
+  cohen = c(coehnd_fp_tn$estimate, coehnd_fp_fn$estimate, coehnd_fp_tp$estimate)
+)
+
+sizes <- data.frame(
+  treatment = c("FP","FN","TP","TN"),
+  sample_size = as.numeric(table1)
+)
+
+barplot(cohens$cohen, 
+        main = "Effect size by treatment (baseline FP)",
+        xlab = "Treatment pairs",
+        ylab = "Cohen's D",
+        names.arg = cohens$treatment)
+
+barplot(sizes$sample_size, 
+        main = "Sample size by treatment (baseline FP)",
+        xlab = "Treatments",
+        ylab = "Size",
+        names.arg = sizes$treatment)
+
 ```
 
 After performing a power test using the pwr package developed by Champely following the calculation as outlined by Cohen, we found a 96% power (n1=29, n2=26, d=0.25, two sided test). This means that the rest of the treatments, who had a larger effect and same sample size will show a larger power.
+
 
 # Regression analysis
 
@@ -131,8 +212,8 @@ cor(as.integer(df$truth_f),as.integer(df$sentiment_f), method = 'pearson')
 # There seems to be almost no correlation between the variables.
 
 # Let's plot a correlation matrix
-df[, truth_b:= ifelse(truth_f=='fake', yes=1,no=0)]
-df[, sentiment_b:= ifelse(sentiment_f=='positive', yes=1,no=0)]
+df[, truth_b:= ifelse(truth_f=='TRUE', yes=1,no=0)]
+df[, sentiment_b:= ifelse(sentiment_f=='negative', yes=1,no=0)]
 
 df %>% select(c(truth_b,sentiment_b,total_correct)) %>% chart.Correlation()
 
@@ -159,20 +240,31 @@ model_3 <- df[, lm(total_correct~truth_f+sentiment_f + truth_f:sentiment_f)]
 summary(model_3, vcov=vcovHC(model_3))
 ```
 
+```{r}
+model_4 <- df[, lm(total_correct~sentiment_f)]
+summary(model_4, vcov=vcovHC(model_4))
+```
+
+Let's adjust p-values:
+
+```{r}
+p.adjust(c(0.1537,0.00176,0.002636,0.08109), method='hochberg')
+```
+
 After running the full model, we found none of the covariates had a significant result.
 
 Let's organize the results in an organized comparison.
 
 ```{r stargazer three models, results='asis'}
 # stargazer of all models
-stargazer(model_1, model_2, model_3,
+stargazer(model_1, model_4, model_2, model_3,
   # type="text",
   se = list(rse(model_1),rse(model_2), rse(model_3)),
-column.labels = c("F","F+P","F+P+F*P"),
+column.labels = c("T","S","T+S","T+S+T*S"),
 dep.var.labels   = "Correct responses",
-covariate.labels = c("Fake information", "Positive sentiment", "Fake:Positive"),
+covariate.labels = c("Truthfulness", "Sentiment", "Truth:Sentiment"),
 # add.lines = list(c("optimized model", "Yes", "Yes","Yes")),
-header=FALSE, type='latex',
+header=FALSE, type='text',
 title = "Regression results"
 )
 ```
