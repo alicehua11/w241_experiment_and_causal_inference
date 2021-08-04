@@ -58,6 +58,28 @@ if (window.hljs) {
 
 
 
+<style type="text/css">
+/* for pandoc --citeproc since 2.11 */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}
+</style>
 
 
 
@@ -172,8 +194,8 @@ pre code {
 </div>
 
 
-<div id="libraries" class="section level2">
-<h2>Libraries</h2>
+<div id="libraries" class="section level2" number="0.1">
+<h2><span class="header-section-number">0.1</span> Libraries</h2>
 <pre class="r"><code>library(data.table)
 library(foreign)
 library(tidyverse)
@@ -204,13 +226,13 @@ rse &lt;- function(model) {
   sqrt(diag(vcovHC(model)))
   }</code></pre>
 </div>
-<div id="experiment-design" class="section level2">
-<h2>Experiment Design</h2>
+<div id="experiment-design" class="section level2" number="0.2">
+<h2><span class="header-section-number">0.2</span> Experiment Design</h2>
 <p>Our main goal is to evaluate if truthfulness is a variable that has a short term impact in memory. We can perform an hypotesis testing comparing all positive tweets to all negative tweers.</p>
-<p>Based on the literature, we expect that tweets with fake information are less likely to be remembered. In regards to sentiment, Weizhen Xie found that negative emotions enchance the visual long-term memory. For the power analysis estimation, we will consider the base group to be the treatment with true and negative emotion content. This will be compared with the treatment with the lowest sample size.</p>
+<p>Based on the literature, we expect that tweets with fake information are less likely to be remembered. In regards to sentiment, <span class="citation">Xie and Zhang (2017)</span> found that negative emotions enchance the visual long-term memory. For the power analysis estimation, we will consider the base group to be the treatment with true and negative emotion content. This will be compared with the treatment with the lowest sample size.</p>
 </div>
-<div id="power-analysis" class="section level2">
-<h2>Power analysis</h2>
+<div id="power-analysis" class="section level2" number="0.3">
+<h2><span class="header-section-number">0.3</span> Power analysis</h2>
 <pre class="r"><code># Base group: TN
 
 table1&lt;- table(df$truth_f,df$sentiment_f)
@@ -276,25 +298,28 @@ pwr.t2n.test(n1 = length(tn$truth) , n2= length(fn$truth), d = coehnd_tn_fn$esti
 ##     alternative = two.sided</code></pre>
 <p>After performing a power test using the pwr package developed by Champely following the calculation as outlined by Cohen, we found a 96% power (n1=29, n2=26, d=0.25, two sided test). This means that the rest of the treatments, who had a larger effect and same sample size will show a larger power.</p>
 </div>
-<div id="regression-analysis" class="section level1">
-<h1>Regression analysis</h1>
-<p>We performed a regression analysis to evaluate the short-memory retention based on the four treatments. Three models were proposed to analyze the data: reduced model which compared only the potential outcome (total correct responses) to the covariate of interest tweet truthfulness. A second model, includes the sentiment as a second independent variable and finaly, a third model adds the interaction between both covariates.</p>
-<p>y: Total correct responses F: Content was fake P: Sentiment was positive</p>
-<div id="model-1-reduced-model" class="section level2">
-<h2>Model 1: Reduced model</h2>
+<div id="regression-analysis" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Regression analysis</h1>
+<p>We performed a regression analysis to evaluate the short-memory retention based on the four treatments.
+Three models were proposed to analyze the data: reduced model which compared only the potential outcome (total correct responses) to the covariate of interest tweet truthfulness. A second model, includes the sentiment as a second independent variable and finaly, a third model adds the interaction between both covariates.</p>
+<p>y: Total correct responses
+F: Content was fake
+P: Sentiment was positive</p>
+<div id="model-1-reduced-model" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Model 1: Reduced model</h2>
 <p><span class="math display">\[y = \beta_0 + \beta_1F + \epsilon_1 \qquad (1)\]</span></p>
 </div>
-<div id="model-2-extended-model" class="section level2">
-<h2>Model 2: Extended model</h2>
+<div id="model-2-extended-model" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Model 2: Extended model</h2>
 <p><span class="math display">\[y = \beta_0 + \beta_1F + \beta_2P + \epsilon_2 \qquad (2)\]</span></p>
 </div>
-<div id="model-3-full-model" class="section level2">
-<h2>Model 3: Full model</h2>
+<div id="model-3-full-model" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Model 3: Full model</h2>
 <p><span class="math display">\[y = \beta_0 + \beta_1F + \beta_2P + \beta_3F\cdot P + \epsilon_3 \qquad  (3)\]</span></p>
 </div>
-<div id="correlation-check" class="section level2">
-<h2>Correlation check</h2>
-<p>Before running the analysis we confirmed that our variables are not correlated. We performed a chi-square test to evaluate the categorical covariates Fake and Positive were indepedent.</p>
+<div id="correlation-check" class="section level2" number="1.4">
+<h2><span class="header-section-number">1.4</span> Correlation check</h2>
+<p>Before running the analysis we confirmed that our variables are not correlated. We performed a pearson’s correlation to evaluate if the covariates Fake and Positive were indepedent.</p>
 <pre class="r"><code># Let&#39;s check if our correlations are linear
 
 cor(as.integer(df$truth_f),as.integer(df$sentiment_f), method = &#39;pearson&#39;)</code></pre>
@@ -388,8 +413,8 @@ title = &quot;Regression results&quot;
 )</code></pre>
 <p>We found that while fake information doesn’t seem to correlate with short-term memory retention, the positive sentiment of tweets does have a significant positive impact in the short-memory retention when explosed to tweets. This is an interesting finding because it’s opposite to what the literature suggested.</p>
 </div>
-<div id="individual-tweet-analysis" class="section level2">
-<h2>Individual tweet analysis</h2>
+<div id="individual-tweet-analysis" class="section level2" number="1.5">
+<h2><span class="header-section-number">1.5</span> Individual tweet analysis</h2>
 <p>Will this results be consistent with individual tweets? We ran a linear regression and clustered it by each tweet to see the error depended on specific tweets.</p>
 <pre class="r"><code>model_q_one &lt;- df[ ,lm(bin_georgians~ truth_f+sentiment_f+truth_f:sentiment_f)]
 model_q_two &lt;- df[ ,lm(bin_energy~ truth_f+sentiment_f+truth_f:sentiment_f)]
@@ -443,13 +468,21 @@ title = &quot;Regression results&quot;
 <p>After analyzing the responses by question type in the full model, we found that there is a short-memory retention effect in the principal covariate truthfulness, some cases the sentiment has an effect and also the interaction between fake and positive. This suggests that there could be a relationship between the topic (ommited variable bias) and the short-memory retention.</p>
 <p>Entertainment, politics and health topics seem to have a stronger effect than environmental related ones such as pollution or energy. Only the question about statements about georgians during the elections seemed to be impacted positively by the sentiment. Also, we found a strong interaction effect between the Fauci, which mentioned the Covi-19 pandemic, which is a very controversial topic. The fauci tweet had the largest F-statistic from all the cases (F=9.2), it showed a more dramatic response with less variance (<span class="math inline">\(R_{adj}=0.19\)</span>).</p>
 </div>
-<div id="descriptive-statistics" class="section level2">
-<h2>Descriptive statistics</h2>
+<div id="descriptive-statistics" class="section level2" number="1.6">
+<h2><span class="header-section-number">1.6</span> Descriptive statistics</h2>
 <p>Missing</p>
 </div>
-<div id="randomization-check" class="section level2">
-<h2>Randomization check</h2>
+<div id="randomization-check" class="section level2" number="1.7">
+<h2><span class="header-section-number">1.7</span> Randomization check</h2>
 <p>Missing</p>
+</div>
+</div>
+<div id="references" class="section level1 unnumbered">
+<h1>References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-XIE201773" class="csl-entry">
+Xie, Weizhen, and Weiwei Zhang. 2017. <span>“Negative Emotion Enhances Mnemonic Precision and Subjective Feelings of Remembering in Visual Long-Term Memory.”</span> <em>Cognition</em> 166: 73–83. https://doi.org/<a href="https://doi.org/10.1016/j.cognition.2017.05.025">https://doi.org/10.1016/j.cognition.2017.05.025</a>.
+</div>
 </div>
 </div>
 

@@ -2,7 +2,9 @@
 title: "W241 Final Project - Tweets are the new folktales"
 author: "Arriaga, Hue, Khural, Moran"
 date: "August 3, 2021"
-output: html_document
+output:
+  bookdown::html_document2: default
+bibliography: "../references/references.bib"
 ---
 
 ```{r setup, include=FALSE}
@@ -48,9 +50,11 @@ rse <- function(model) {
 
 ## Experiment Design
 
+
+
 Our main goal is to evaluate if truthfulness is a variable that has a short term impact in memory. We can perform an hypotesis testing comparing all positive tweets to all negative tweers.
 
-Based on the literature, we expect that tweets with fake information are less likely to be remembered. In regards to sentiment, Weizhen Xie found that negative emotions enchance the visual long-term memory. For the power analysis estimation, we will consider the base group to be the treatment with true and negative emotion content. This will be compared with the treatment with the lowest sample size.
+Based on the literature, we expect that tweets with fake information are less likely to be remembered. In regards to sentiment, @XIE201773 found that negative emotions enchance the visual long-term memory. For the power analysis estimation, we will consider the base group to be the treatment with true and negative emotion content. This will be compared with the treatment with the lowest sample size.
 
 ## Power analysis
 
@@ -100,24 +104,24 @@ We performed a regression analysis to evaluate the short-memory retention based 
 Three models were proposed to analyze the data: reduced model which compared only the potential outcome (total correct responses) to the covariate of interest tweet truthfulness. A second model, includes the sentiment as a second independent variable and finaly, a third model adds the interaction between both covariates.
 
 y: Total correct responses
-F: Content was fake
-P: Sentiment was positive
+T: Truthfulness in the tweet
+S: Sentiment in the tweet
 
 ## Model 1: Reduced model
 
-$$y = \beta_0 + \beta_1F + \epsilon_1 \qquad (1)$$
+$$y = \beta_0 + \beta_1T + \epsilon_1 \qquad (1)$$
 
 ## Model 2: Extended model
 
-$$y = \beta_0 + \beta_1F + \beta_2P + \epsilon_2 \qquad (2)$$
+$$y = \beta_0 + \beta_1T + \beta_2S + \epsilon_2 \qquad (2)$$
 
 ## Model 3: Full model
 
-$$y = \beta_0 + \beta_1F + \beta_2P + \beta_3F\cdot P + \epsilon_3 \qquad  (3)$$
+$$y = \beta_0 + \beta_1T + \beta_2S + \beta_3T\cdot S + \epsilon_3 \qquad  (3)$$
 
 ## Correlation check
 
-Before running the analysis we confirmed that our variables are not correlated. We performed a chi-square test to evaluate the categorical covariates Fake and Positive were indepedent.
+Before running the analysis we confirmed that our variables are not correlated. We performed a pearson's correlation to evaluate if the covariates Fake and Positive were indepedent.
 
 ```{r}
 # Let's check if our correlations are linear
@@ -215,4 +219,7 @@ Missing
 ## Randomization check
 
 Missing
+
+# References
+
 
