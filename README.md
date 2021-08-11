@@ -1,10 +1,19 @@
-# Can tweets become the new folktale?
-This project was created by Carolina Arriaga, Alice Hua, Manpreet Khural and Randy Moran.
+# W241 - Summer 2021 Final Project 
 
-Objective: Understand if people's memory is affected after exposed to a controlled tweet post with factors: truth (Fact/Fake) and sentiment (Positive/Negative).
+## Can tweets become the new folktale?
 
-Project Organization
-------------
+### Team Members:
+
+- Alice Hua, [@alicehua11](https://github.com/alicehua11/)
+- Carolina Arriaga, [@caroarriaga](https://github.com/caroarriaga)         
+- Manpreet Khural, [@mkhural](https://github.com/mkhural)
+- Randy Moran, [@rmoran-mids](https://github.com/rmoran-mids) 
+
+### Objective: 
+
+Understand if people's memory is affected after exposed to a controlled tweet post with factors: truth (Fact/Fake) and sentiment (Positive/Negative).
+
+### Project Organization
 
     ├── LICENSE
     ├── README.md          <- The top-level README for developers using this project.

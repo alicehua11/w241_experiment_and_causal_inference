@@ -1,0 +1,357 @@
+---
+title: "W241 Final Project - Tweets are the new folktales"
+author: "Arriaga, Hua, Khural, Moran"
+date: "August 3, 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## Libraries
+```{r load libraries}
+library(data.table)
+library(foreign)
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(lmtest)
+library(MatchIt)
+library(cobalt)
+library(WeightIt)
+# Calculate power
+library(effsize)
+library(pwr)
+
+# Correlation checks
+library(ggpubr)
+library(corrplot)
+library(PerformanceAnalytics)
+
+# Variance
+library(sandwich)
+
+# Reports
+library(stargazer)
+```
+
+Let's load the data.
+
+```{r load the data}
+df<-data.table::fread("../data/processed/tweets_data.csv")
+df$truth_f <- factor(df$truth, levels=c("FALSE","TRUE"))
+df$sentiment_f <- factor(df$sentiment, levels = c("positive","negative"))
+df$gender <- factor(df$gender, levels = c('Male', 'Female'))
+df$education <- factor(df$education, levels = c('College Graduate', 'Some College', 'Highschool'))
+df$age <- factor(df$age, levels = c('18 - 24', '25 - 34', '55 +'))
+
+# Robust standard error
+rse <- function(model) { 
+  sqrt(diag(vcovHC(model)))
+  }
+```
+
+## Experiment Design
+
+Our main goal is to evaluate if truthfulness is a variable that has a short term impact in memory. We can perform an hypotesis testing comparing all positive tweets to all negative tweers.
+
+Based on the literature, we expect that tweets with fake information are less likely to be remembered. In regards to sentiment, @XIE201773 found that negative emotions enchance the visual long-term memory. For the power analysis estimation, we will consider the base group to be the treatment with true and negative emotion content. This will be compared with the treatment with the lowest sample size.
+
+```{r setup factors}
+# Base group: TN
+table1<- table(df$truth_f,df$sentiment_f)
+table1
+
+# We adjusted the levels based on the literature
+# Confirmation check
+
+# This line outputs "False" "true", meaning fake=0, fact=1
+levels(df$truth_f)
+
+# Now for sentiment: positive=0, negative=1
+levels(df$sentiment_f)
+```
+
+
+# Attrition
+
+We encountered attrition in the treatments TP (10%) and TN (3%). We followed @gerber2012field extreme bounds to gauge the potential consequences of attrition.
+
+```{r extreme values}
+
+p <- ggplot(df[attrition!=1], aes(x=interaction(sentiment_f,truth_f), 
+                                  y=total_correct,
+                                  fill=sentiment_f)) + 
+  geom_violin()+ 
+  labs(title="Treatment distribution",x="Treatment", y = "Correct answers (max 7)")+
+  geom_boxplot(width=0.1) +
+  guides(fill=guide_legend(title = "Sentiment"))+
+  scale_fill_brewer(palette = "Oranges")+
+  theme_minimal()
+p
+
+```
+
+We believe that filling attrition metrics with lower bound will reduce the effect size between treatments.
+
+```{r}
+df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="positive")]$total_correct <-df[(attrition==0 & truth_f=="TRUE" & sentiment_f=="positive")]$total_correct %>% max()
+
+df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="negative")]$total_correct <-
+df[(attrition==0 & truth_f=="TRUE" & sentiment_f=="negative")]$total_correct %>% min()
+
+# Check that lower bounds were added
+df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="positive")]$total_correct 
+df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="negative")]$total_correct
+
+```
+
+
+## Power analysis
+
+```{r finding base treatment}
+
+
+# Let's see the least optimistic one: smaller effect
+# The level values are consistent with our literatue (base=Fake-Positive)
+tp<- subset(df, truth_f=="TRUE" & sentiment_f=="positive")
+tn<- subset(df, truth_f=="TRUE" & sentiment_f=="negative")
+fp<- subset(df, truth_f=="FALSE" & sentiment_f=="positive")
+fn<- subset(df, truth_f=="FALSE" & sentiment_f=="negative")
+
+# Let's compare the coehn's do to see which one has the smaller effect size
+# coehnd_tn_tp <- cohen.d(tn$total_correct,tp$total_correct)
+# coehnd_tn_tp
+# coehnd_tn_fp <- cohen.d(tn$total_correct,fp$total_correct)
+# coehnd_tn_fp
+# coehnd_tn_fn <- cohen.d(tn$total_correct,fn$total_correct)
+# coehnd_tn_fn
+
+# Baseline Fake-Positive with n=26
+coehnd_fp_tn <- cohen.d(fp$total_correct,tn$total_correct)
+coehnd_fp_tn
+
+coehnd_fp_fn <- cohen.d(fp$total_correct,fn$total_correct)
+coehnd_fp_fn
+
+coehnd_fp_tp <- cohen.d(fp$total_correct,tp$total_correct)
+coehnd_fp_tp
+
+```
+
+We selected the comparison between treatment TN and FN because they show a small effect size (d=-0.26).
+
+```{r power analysis}
+
+# We can perform a power test given the effect sizes, samples
+# Option one = check by smallest effect size
+pwr.t2n.test(n1 = length(fp$truth) , n2= length(tp$truth), d = coehnd_fp_tp$estimate, sig.level = .95)
+
+# Option two = check by smallest sample size, then effect size
+pwr.t2n.test(n1 = length(fp$truth) , n2= length(fn$truth), d = coehnd_fp_fn$estimate, sig.level = .95)
+
+```
+
+
+```{r}
+# Plot power comparison by treatment
+cohens <- data.frame(
+  treatment = c("FP-TN","FP-FN","FP-TP"),
+  cohen = c(coehnd_fp_tn$estimate, coehnd_fp_fn$estimate, coehnd_fp_tp$estimate)
+)
+
+sizes <- data.frame(
+  treatment = c("FP","FN","TP","TN"),
+  sample_size = as.numeric(table1)
+)
+
+barplot(cohens$cohen, 
+        main = "Effect size by treatment (baseline FP)",
+        xlab = "Treatment pairs",
+        ylab = "Cohen's D",
+        names.arg = cohens$treatment)
+
+barplot(sizes$sample_size, 
+        main = "Sample size by treatment (baseline FP)",
+        xlab = "Treatments",
+        ylab = "Size",
+        names.arg = sizes$treatment)
+
+```
+
+After performing a power test using the pwr package developed by Champely following the calculation as outlined by Cohen, we found a 96% power (n1=29, n2=26, d=0.25, two sided test). This means that the rest of the treatments, who had a larger effect and same sample size will show a larger power.
+
+
+# Regression analysis
+
+We performed a regression analysis to evaluate the short-memory retention based on the four treatments.
+Three models were proposed to analyze the data: reduced model which compared only the potential outcome (total correct responses) to the covariate of interest tweet truthfulness. A second model, includes the sentiment as a second independent variable and finaly, a third model adds the interaction between both covariates.
+
+y: Total correct responses
+T: Truthfulness in the tweet
+S: Sentiment in the tweet
+
+## Model 1: Reduced model
+
+$$y = \beta_0 + \beta_1T + \epsilon \qquad (1)$$
+
+## Model 2: Extended model
+
+$$y = \beta_0 + \beta_1S + \epsilon \qquad (2)$$
+
+## Model 3: Extended model
+
+$$y = \beta_0 + \beta_1T + \beta_2S + \epsilon \qquad (2)$$
+
+## Model 4: Full model
+
+$$y = \beta_0 + \beta_1T + \beta_2S + \beta_3T\cdot S + age + gender + educ + \epsilon \qquad  (3)$$
+
+## Correlation check
+
+Before running the analysis we confirmed that our variables are not correlated. We performed a pearson's correlation to evaluate if the covariates Fake and Positive were indepedent.
+
+```{r}
+# Let's check if our correlations are linear
+
+cor(as.integer(df$truth_f),as.integer(df$sentiment_f), method = 'pearson')
+
+# There seems to be almost no correlation between the variables.
+
+# Let's plot a correlation matrix
+df[, truth_b:= ifelse(truth_f=='TRUE', yes=1,no=0)]
+df[, sentiment_b:= ifelse(sentiment_f=='negative', yes=1,no=0)]
+
+df %>% select(c(truth_b,sentiment_b,total_correct)) %>% chart.Correlation()
+
+```
+
+Now we compute the three proposed models.
+
+```{r logit model 1}
+model_1 <- df[, lm(total_correct~truth_f)]
+summary(model_1, vcov=vcovHC(model_1))
+se.robust1 <- coeftest(model_1, vcov=vcovHC)[ ,"Std. Error"]
+```
+
+Looking at the linear regression, we didn't find a correlation between fake tweets and memory retention. We fail to reject the null hypothesis in our reduced model.
+
+```{r}
+model_2 <- df[, lm(total_correct~sentiment_f)]
+summary(model_2, vcov=vcovHC(model_2))
+se.robust2 <- coeftest(model_2, vcov=vcovHC)[ ,"Std. Error"]
+```
+```{r logit model 2}
+model_3 <- df[, lm(total_correct~truth_f+sentiment_f)]
+summary(model_3, vcov=vcovHC(model_3))
+se.robust3 <- coeftest(model_3, vcov=vcovHC)[ ,"Std. Error"]
+```
+When running the extended model, we found that the fake covariate coefficient is reduced to 0.39 ($\delta\beta_1=-0.03$) and the standard error was slightly reduced ($\delta\sigma_f=0.01$). We found that sentiment had a significant positive impact in short-term memory retention by 0.73 (p-val=0.007, CI=95%), which is closer to remembering the content of one more tweet.
+
+```{r logit model 3}
+model_4 <- df[, lm(total_correct~truth_f+sentiment_f + truth_f*sentiment_f + 
+                     as.factor(gender) + as.factor(education) + as.factor(age))]
+summary(model_4, vcov=vcovHC(model_4))
+se.robust4 <- coeftest(model_4, vcov=vcovHC)[ ,"Std. Error"]
+```
+
+Let's adjust p-values:
+
+```{r}
+p.adjust(c(0.1537,0.00176,0.002636,0.08109), method='hochberg')
+```
+
+After running the full model, we found none of the covariates had a significant result.
+
+Let's organize the results in an organized comparison.
+
+
+```{r stargazer three models, results='asis'}
+# stargazer of all models
+stargazer(model_1, model_2, model_3, model_4,
+    se = list(rse(model_1), rse(model_2), rse(model_3), rse(model_4)),
+    #se = list(se.robust1, se.robust2, se.robust3, se.robust4),
+    column.labels = c("T","S","T+S","T+S+T*S+Covariates"),
+    dep.var.labels   = "Correct responses",
+    #covariate.labels = c("Truthfulness", "Sentiment", "Truth:Sentiment"),
+    # add.lines = list(c("optimized model", "Yes", "Yes","Yes")),
+    header=FALSE, type='text',
+    title = "Regression results"
+)
+```
+
+We found that while fake information doesn't seem to correlate with short-term memory retention, the positive sentiment of tweets does have a significant positive impact in the short-memory retention when explosed to tweets. This is an interesting finding because it's opposite to what the literature suggested.
+
+## Individual tweet analysis
+
+Will this results be consistent with individual tweets? We ran a linear regression and clustered it by each tweet to see the error depended on specific tweets.
+
+```{r}
+model_q_one <- df[ ,lm(bin_georgians~ truth_f+sentiment_f+truth_f:sentiment_f)]
+model_q_two <- df[ ,lm(bin_energy~ truth_f+sentiment_f+truth_f:sentiment_f)]
+model_q_three <- df[ ,lm(bin_soccer~ truth_f+sentiment_f+truth_f:sentiment_f)]
+model_q_four <- df[ ,lm(bin_pollution~ truth_f+sentiment_f+truth_f:sentiment_f)]
+model_q_five <- df[ ,lm(bin_fauci~ truth_f+sentiment_f+truth_f:sentiment_f)]
+model_q_six <- df[ ,lm(bin_election~ truth_f+sentiment_f+truth_f:sentiment_f)]
+
+# stargazer by question
+stargazer(model_q_one, model_q_two, model_q_three,
+          model_q_four,model_q_five,model_q_six,
+  # type="text",
+  se = list(rse(model_q_one),rse(model_q_two), rse(model_q_three),
+            rse(model_q_four),rse(model_q_five),rse(model_q_six)),
+column.labels = c("Georgians","Energy","Soccer","Pollution","Fauci","Election"),
+dep.var.labels =  c("","","","","",""),
+covariate.labels = c("Fake information", "Positive sentiment", "Fake:Positive"),
+# add.lines = list(c("optimized model", "Yes", "Yes","Yes")),
+header=FALSE, type='text',
+title = "Regression results"
+)
+```
+
+After analyzing the responses by question type in the full model, we found that there is a short-memory retention effect in the principal covariate truthfulness, some cases the sentiment has an effect and also the interaction between fake and positive. This suggests that there could be a relationship between the topic (ommited variable bias) and the short-memory retention.
+
+Entertainment, politics and health topics seem to have a stronger effect than environmental related ones such as pollution or energy. Only the question about statements about georgians during the elections seemed to be impacted positively by the sentiment. Also, we found a strong interaction effect between the Fauci, which mentioned the Covi-19 pandemic, which is a very controversial topic. The fauci tweet had the largest F-statistic from all the cases (F=9.2), it showed a more dramatic response with less variance ($R_{adj}=0.19$).
+
+
+
+## Descriptive statistics
+
+Missing 
+
+## Randomization check
+
+```{r}
+# Let's not do this, rather the next block 
+
+# treat_assign <- function(x) {
+#   case_when(x$truth_f == 'fact' & x$sentiment_f == 'negative' ~ 1,
+#             x$truth_f == 'fake' & x$sentiment_f == 'negative' ~ 2,
+#             x$truth_f == 'fact' & x$sentiment_f == 'positive' ~ 3,
+#             x$truth_f == 'fake' & x$sentiment_f == 'positive' ~ 4)
+# }
+# df[ , treat := treat_assign(df)]
+# treat_1 <- df[ , lm(treat==1 ~ gender + age + education)]
+# treat_2 <- df[ , lm(treat==2 ~ gender + age + education)]
+# treat_3 <- df[ , lm(treat==3 ~ gender + age + education)]
+# treat_4 <- df[ , lm(treat==4 ~ gender + age + education)]
+# stargazer(treat_1,treat_2,treat_3,treat_4, type='text',
+#           dep.var.caption = 'Randomization check',
+#           dep.var.labels = c('Four', 'different', 'treatment', 'groups'),
+#           column.labels = c('FN', 'TN', 'TP', 'FP'),
+#           covariate.labels = c('Male', 'Age 25 -34', 'Age 35 - 54', 'Age 55+', 'Educ Highschool', 'Educ College'))
+```
+
+```{r covariate balance check}
+cov <- subset(df, select = c(age, education, gender))
+cov_check <- weightit(treatment_group ~ cov, data = df,
+                     method = 'ps')
+bal.plot(cov_check, "gender", which = 'unadjusted')
+bal.plot(cov_check, "education", which = 'unadjusted')
+bal.plot(cov_check, "age", which = 'unadjusted')
+```
+
+
+
+
