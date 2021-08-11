@@ -40,11 +40,14 @@ Let's load the data.
 
 ```{r load the data}
 df<-data.table::fread("../data/processed/tweets_data.csv")
+
 df$truth_f <- factor(df$truth, levels=c("FALSE","TRUE"))
 df$sentiment_f <- factor(df$sentiment, levels = c("positive","negative"))
 df$gender <- factor(df$gender, levels = c('Male', 'Female'))
 df$education <- factor(df$education, levels = c('College Graduate', 'Some College', 'Highschool'))
-df$age <- factor(df$age, levels = c('18 - 24', '25 - 34', '55 +'))
+
+df$age <- gsub("[a-zA-Z]", "", df$age)
+df$age <- factor(df$age, levels = c("18 - 24  ", "25 - 34  ", "55 +"))
 
 # Robust standard error
 rse <- function(model) { 
@@ -251,7 +254,7 @@ When running the extended model, we found that the fake covariate coefficient is
 
 ```{r logit model 3}
 model_4 <- df[, lm(total_correct~truth_f+sentiment_f + truth_f*sentiment_f + 
-                     as.factor(gender) + as.factor(education) + as.factor(age))]
+                     gender + education + age)]
 summary(model_4, vcov=vcovHC(model_4))
 se.robust4 <- coeftest(model_4, vcov=vcovHC)[ ,"Std. Error"]
 ```
@@ -352,6 +355,8 @@ bal.plot(cov_check, "education", which = 'unadjusted')
 bal.plot(cov_check, "age", which = 'unadjusted')
 ```
 
+
+## Reference
 
 
 
