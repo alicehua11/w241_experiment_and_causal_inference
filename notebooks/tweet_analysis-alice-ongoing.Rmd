@@ -34,6 +34,9 @@ library(sandwich)
 
 # Reports
 library(stargazer)
+
+# Power
+library(pwr)
 ```
 
 Let's load the data.
@@ -112,10 +115,88 @@ df[(attrition==1 & truth_f=="TRUE" & sentiment_f=="negative")]$total_correct
 
 
 ## Power analysis
+```{r}
+d_pilot <-data.table::fread("../data/processed/w241_Final_Pilot_Plot.csv")
+
+# Look at counts per treatment group
+d_pilot[ , .N, by=treatment_group]
+
+# Will just do power based on FP and FN since we have similar counts on these 
+# These counts are reasonable for a pilot study of 20 
+d_pwr <- df_pilot[treatment_group == "FP" | treatment_group == "FN", ]
+pilot_effect <- d_pwr[ , .(mean_correct=mean(Correct_Count)), by=treatment_group][, diff(mean_correct)]
+
+d_pwr
+cat("Our pilot effect size is: ", pilot_effect)
+```
+
+```{r pretreatment power analysis}
+power_analysis <- function(d, 
+                           mean_correct='mean_correct', 
+                           n=NULL, 
+                           power=0.8, 
+                           sig_level=0.05) {
+    m_null  <- 0
+    m_alt   <- d[ , .(mean_correct=mean(Correct_Count)), by=treatment_group][, diff(mean_correct)]
+    
+    # estimate sd of ATE using eq 3.6 from Geerber & Green, Field Experiments
+    N <- d_pilot[treatment_group=="FP" | treatment_group=="FN", .N]
+    m <- d_pilot[treatment_group=="FN", .N]
+    
+    var_y0 <- var(d[treatment_group=="FP", 'Correct_Count'])[1,1]
+    var_y1 <- var(d[treatment_group=="FN", 'Correct_Count'])[1,1]
+    sd <- (var_y0 / (N - m) + var_y1 / m) ^ 0.5
+    
+        
+    # calculate cohen.d, standardized effective size between null and alternative
+    if (is.null(n)) {
+        cohen.d <- (m_alt - m_null) / sd
+    } else {
+        cohen.d <- NULL
+    }
+    
+    # power analysis
+    pwr <- pwr.t.test(
+                n = n,
+                d = cohen.d,
+                sig.level = sig_level,
+                power = power,
+                type = "two.sample",
+                alternative = "two.sided")
+    
+    # recover effect size
+    if (is.null(cohen.d)) {
+        es <- pwr$d * sd
+        return(list(pwr, es))
+    } else {
+        return(pwr)
+    }
+}
+```
+
+```{r}
+effect_sizes <- c()
+sample_sizes <- c()
+for (n in 10:100) {
+  pwr <- power_analysis(d_pwr, "mean_correct", n)
+  effect_sizes <- c(effect_sizes, pwr[2])
+  sample_sizes <- c(sample_sizes, n)
+}
+```
+
+```{r}
+plot(sample_sizes, 
+     effect_sizes,
+     xlim = c(0,100),
+     ylim = c(0,1),
+     main='Power Analysis: Sample Size vs. Effect Size',
+     xlab='Total Sample Size',
+     ylab='Effect Size ($)')
+abline(v=200, col="grey", lty=2)
+abline(v=400, col="grey", lty=2)
+```
 
 ```{r finding base treatment}
-
-
 # Let's see the least optimistic one: smaller effect
 # The level values are consistent with our literatue (base=Fake-Positive)
 tp<- subset(df, truth_f=="TRUE" & sentiment_f=="positive")
@@ -285,6 +366,22 @@ stargazer(model_1, model_2, model_3, model_4,
 ```
 
 We found that while fake information doesn't seem to correlate with short-term memory retention, the positive sentiment of tweets does have a significant positive impact in the short-memory retention when explosed to tweets. This is an interesting finding because it's opposite to what the literature suggested.
+
+```{r}
+mv1 <- anova(model_2, model_1, test = 'F')
+mv1
+```
+
+```{r}
+mv2 <- anova(model_3, model_2, test = 'F')
+mv2
+```
+
+```{r}
+mv3 <- anova(model_4, model_3, test = 'F')
+mv3
+```
+```
 
 ## Individual tweet analysis
 
