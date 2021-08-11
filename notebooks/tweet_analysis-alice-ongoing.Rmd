@@ -192,8 +192,9 @@ plot(sample_sizes,
      main='Power Analysis: Sample Size vs. Effect Size',
      xlab='Total Sample Size',
      ylab='Effect Size ($)')
-abline(v=200, col="grey", lty=2)
-abline(v=400, col="grey", lty=2)
+abline(v=20, col="grey", lty=2)
+abline(v=100, col="grey", lty=2)
+abline(h=0.2, col="grey", lty=2)
 ```
 
 ```{r finding base treatment}
