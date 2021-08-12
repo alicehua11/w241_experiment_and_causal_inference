@@ -79,8 +79,41 @@ levels(df$truth_f)
 levels(df$sentiment_f)
 ```
 
+## Randomization check
 
-# Attrition
+```{r}
+# Let's not do this, rather the next block 
+
+# treat_assign <- function(x) {
+#   case_when(x$truth_f == 'fact' & x$sentiment_f == 'negative' ~ 1,
+#             x$truth_f == 'fake' & x$sentiment_f == 'negative' ~ 2,
+#             x$truth_f == 'fact' & x$sentiment_f == 'positive' ~ 3,
+#             x$truth_f == 'fake' & x$sentiment_f == 'positive' ~ 4)
+# }
+# df[ , treat := treat_assign(df)]
+# treat_1 <- df[ , lm(treat==1 ~ gender + age + education)]
+# treat_2 <- df[ , lm(treat==2 ~ gender + age + education)]
+# treat_3 <- df[ , lm(treat==3 ~ gender + age + education)]
+# treat_4 <- df[ , lm(treat==4 ~ gender + age + education)]
+# stargazer(treat_1,treat_2,treat_3,treat_4, type='text',
+#           dep.var.caption = 'Randomization check',
+#           dep.var.labels = c('Four', 'different', 'treatment', 'groups'),
+#           column.labels = c('FN', 'TN', 'TP', 'FP'),
+#           covariate.labels = c('Male', 'Age 25 -34', 'Age 35 - 54', 'Age 55+', 'Educ Highschool', 'Educ College'))
+```
+
+```{r covariate balance check}
+cov <- subset(df, select = c(age, education, gender))
+cov_check <- weightit(treatment_group ~ cov, data = df,
+                     method = 'ps')
+bal.plot(cov_check, "gender", which = 'unadjusted')
+bal.plot(cov_check, "education", which = 'unadjusted')
+bal.plot(cov_check, "age", which = 'unadjusted')
+```
+
+
+
+## Attrition
 
 We encountered attrition in the treatments TP (10%) and TN (3%). We followed @gerber2012field extreme bounds to gauge the potential consequences of attrition.
 
@@ -227,7 +260,7 @@ coehnd_fp_tp
 
 We selected the comparison between treatment TN and FN because they show a small effect size (d=-0.26).
 
-```{r power analysis}
+```{r posttreatment power analysis}
 
 # We can perform a power test given the effect sizes, samples
 # Option one = check by smallest effect size
@@ -322,19 +355,19 @@ se.robust1 <- coeftest(model_1, vcov=vcovHC)[ ,"Std. Error"]
 
 Looking at the linear regression, we didn't find a correlation between fake tweets and memory retention. We fail to reject the null hypothesis in our reduced model.
 
-```{r}
+```{r logit model 2}
 model_2 <- df[, lm(total_correct~sentiment_f)]
 summary(model_2, vcov=vcovHC(model_2))
 se.robust2 <- coeftest(model_2, vcov=vcovHC)[ ,"Std. Error"]
 ```
-```{r logit model 2}
+```{r logit model 3}
 model_3 <- df[, lm(total_correct~truth_f+sentiment_f)]
 summary(model_3, vcov=vcovHC(model_3))
 se.robust3 <- coeftest(model_3, vcov=vcovHC)[ ,"Std. Error"]
 ```
 When running the extended model, we found that the fake covariate coefficient is reduced to 0.39 ($\delta\beta_1=-0.03$) and the standard error was slightly reduced ($\delta\sigma_f=0.01$). We found that sentiment had a significant positive impact in short-term memory retention by 0.73 (p-val=0.007, CI=95%), which is closer to remembering the content of one more tweet.
 
-```{r logit model 3}
+```{r logit model 4}
 model_4 <- df[, lm(total_correct~truth_f+sentiment_f + truth_f*sentiment_f + 
                      gender + education + age)]
 summary(model_4, vcov=vcovHC(model_4))
@@ -368,17 +401,17 @@ stargazer(model_1, model_2, model_3, model_4,
 
 We found that while fake information doesn't seem to correlate with short-term memory retention, the positive sentiment of tweets does have a significant positive impact in the short-memory retention when explosed to tweets. This is an interesting finding because it's opposite to what the literature suggested.
 
-```{r}
+```{r anova 1}
 mv1 <- anova(model_2, model_1, test = 'F')
 mv1
 ```
 
-```{r}
+```{r anova 2}
 mv2 <- anova(model_3, model_2, test = 'F')
 mv2
 ```
 
-```{r}
+```{r anova 3}
 mv3 <- anova(model_4, model_3, test = 'F')
 mv3
 ```
@@ -388,7 +421,7 @@ mv3
 
 Will this results be consistent with individual tweets? We ran a linear regression and clustered it by each tweet to see the error depended on specific tweets.
 
-```{r}
+```{r logit model questions}
 model_q_one <- df[ ,lm(bin_georgians~ truth_f+sentiment_f+truth_f:sentiment_f)]
 model_q_two <- df[ ,lm(bin_energy~ truth_f+sentiment_f+truth_f:sentiment_f)]
 model_q_three <- df[ ,lm(bin_soccer~ truth_f+sentiment_f+truth_f:sentiment_f)]
@@ -414,47 +447,4 @@ title = "Regression results"
 After analyzing the responses by question type in the full model, we found that there is a short-memory retention effect in the principal covariate truthfulness, some cases the sentiment has an effect and also the interaction between fake and positive. This suggests that there could be a relationship between the topic (ommited variable bias) and the short-memory retention.
 
 Entertainment, politics and health topics seem to have a stronger effect than environmental related ones such as pollution or energy. Only the question about statements about georgians during the elections seemed to be impacted positively by the sentiment. Also, we found a strong interaction effect between the Fauci, which mentioned the Covi-19 pandemic, which is a very controversial topic. The fauci tweet had the largest F-statistic from all the cases (F=9.2), it showed a more dramatic response with less variance ($R_{adj}=0.19$).
-
-
-
-## Descriptive statistics
-
-Missing 
-
-## Randomization check
-
-```{r}
-# Let's not do this, rather the next block 
-
-# treat_assign <- function(x) {
-#   case_when(x$truth_f == 'fact' & x$sentiment_f == 'negative' ~ 1,
-#             x$truth_f == 'fake' & x$sentiment_f == 'negative' ~ 2,
-#             x$truth_f == 'fact' & x$sentiment_f == 'positive' ~ 3,
-#             x$truth_f == 'fake' & x$sentiment_f == 'positive' ~ 4)
-# }
-# df[ , treat := treat_assign(df)]
-# treat_1 <- df[ , lm(treat==1 ~ gender + age + education)]
-# treat_2 <- df[ , lm(treat==2 ~ gender + age + education)]
-# treat_3 <- df[ , lm(treat==3 ~ gender + age + education)]
-# treat_4 <- df[ , lm(treat==4 ~ gender + age + education)]
-# stargazer(treat_1,treat_2,treat_3,treat_4, type='text',
-#           dep.var.caption = 'Randomization check',
-#           dep.var.labels = c('Four', 'different', 'treatment', 'groups'),
-#           column.labels = c('FN', 'TN', 'TP', 'FP'),
-#           covariate.labels = c('Male', 'Age 25 -34', 'Age 35 - 54', 'Age 55+', 'Educ Highschool', 'Educ College'))
-```
-
-```{r covariate balance check}
-cov <- subset(df, select = c(age, education, gender))
-cov_check <- weightit(treatment_group ~ cov, data = df,
-                     method = 'ps')
-bal.plot(cov_check, "gender", which = 'unadjusted')
-bal.plot(cov_check, "education", which = 'unadjusted')
-bal.plot(cov_check, "age", which = 'unadjusted')
-```
-
-
-## Reference
-
-
 

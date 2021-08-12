@@ -18,7 +18,7 @@ library(stargazer)                      # for printing tables
 theme_set(theme_classic())
 # Set working directory
 # setwd("C:/Users/Zaptetra/Google Drive/MIDS/W241/w241_final_project/notebooks")
-knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 7)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 4)
 ```
 
 ## The raw data
@@ -450,32 +450,49 @@ gdr0 <- ggplot(df, aes(x=education)) +
   ggtitle("Overall - Education") +
   xlab("Education") + ylab("Count")+
   theme(axis.text.x = element_text(angle=90))
+
 gdr1 <- ggplot(df_tp, aes(x=education)) +
   geom_bar( fill = I("grey"),
       col = I("blue"))+
   ggtitle("True-Positive") +
   xlab(NULL) + ylab("Count")+
   theme(axis.text.x = element_text(angle=90))
+
 gdr2 <- ggplot(df_tn, aes(x=education)) +
   geom_bar( fill = I("grey"),
       col = I("blue")) +
   ggtitle("True-Negative") +
   xlab(NULL) + ylab(NULL)+
   theme(axis.text.x = element_text(angle=90))
+
 gdr3 <- ggplot(df_fp, aes(x=education)) +
   geom_bar( fill = I("grey"),
       col = I("blue")) +
   ggtitle("False-Positive") +
   xlab("Education") + ylab("Count")+
   theme(axis.text.x = element_text(angle=90))
+
 gdr4 <- ggplot(df_fn, aes(x=education)) +
   geom_bar( fill = I("grey"),
       col = I("blue")) +
   ggtitle("False-Negative") +
   xlab("Education") + ylab(NULL)+
   theme(axis.text.x = element_text(angle=90))
+
 grid.arrange(gdr0, gdr1, gdr2, gdr3, gdr4, widths = c(2, 1, 1),
   layout_matrix = rbind(c(1, 2, 3), 
                         c(1, 4, 5)))
+```
+## Pilot data visualized
+
+```{r}
+d_pilot_questions <- data.table::fread('../data/processed/pilot_questions_responses.csv')
+```
+```{r}
+ggplot(data=d_pilot_questions, aes(x=questions, y=correct, fill=treatment_group)) +
+  geom_bar(stat='identity', position = position_dodge(), alpha=0.8) +
+  scale_x_discrete(limits = c('1','2','3','4','5','6','7')) +
+  scale_y_discrete(limits = c('1','2','3','4','5','6','7')) +
+  theme(title = "Pilot Correct Counts by Questions" )
 ```
 
