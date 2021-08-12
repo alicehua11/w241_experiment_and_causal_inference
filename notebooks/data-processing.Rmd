@@ -1,0 +1,498 @@
+---
+title: "w41_tweets_facts_sentiment_TP"
+author: "Arriaga, Hue, Khural, Moran"
+date: "July 31, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(foreign)
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(ggplot2)
+
+library(gridExtra)
+library(stargazer)                      # for printing tables 
+
+theme_set(theme_minimal())
+# Set working directory
+# setwd("C:/Users/Zaptetra/Google Drive/MIDS/W241/w241_final_project/notebooks")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The raw data
+
+First we will load the data.
+
+```{r load data}
+# d<- data.table::fread('../data/raw/response_tp_07_31.csv')
+# d<- data.table::fread('../data/raw/response_tn_07_31.csv')
+# d<- data.table::fread('../data/raw/response_fp_07_31.csv')
+#d<- data.table::fread('../data/raw/response_fn_07_31.csv')
+
+
+```
+
+## Data cleaning
+
+We will first review:
+
+- Eliminate empty columns
+- Rename columns
+- Update fields that didn't export correctly (missing data)
+- Check for attrition or duplicates
+- Check for fake answers: response time too quick plus attention check question wrong.
+- Convert data to correct type (all are strings)
+
+```{r pressure, echo=FALSE}
+
+# delete unwanted rows
+#unwanted_rows <- c(1,2)
+
+# # Drop blank columns
+# drop_columns <- c("RecipientLastName",
+#                   "RecipientFirstName",
+#                   "RecipientEmail",
+#                   "ExternalReference", "Progress", "Status",
+#                   "LocationLatitude",
+#                   "LocationLongitude","DistributionChannel",
+#                   "UserLanguage","IPAddress")
+
+#drop_col_index <- which(colnames(d) %in% drop_columns)
+
+#d<- d[-unwanted_rows, ]
+#
+#d[, drop_columns]<-list(NULL)
+
+#col_new_names <- c("start_date", "end_date", "survey_duration",
+#                   "finished", "finished_date", "id", "email",
+#                   "gender", "age", "education",
+#                   "tweet_first_click_time", "tweet_last_click_time", "tweet_submit_time", "tweet_click_count",
+#                   "math_q1", "math_q2",
+#                   "test_first_click_time", "test_last_click_time", "test_submit_time", "test_click_count",
+#                   "stimulus","georgians","energy","soccer","fauci", "pollution","election")
+
+# Rename columns
+#colnames(d) <- col_new_names
+
+# Check for missing data
+# Audit missing values
+####################
+# Survey id: R_3s64ZlPIAtROugC - missing soccer and fauci (response in qualtrics confirmed)
+# d[id=="R_3s64ZlPIAtROugC"]$soccer <- "None of the above"
+# d[id=="R_3s64ZlPIAtROugC"]$fauci <- "None of the above"
+
+# survey id: R_33vRD5yKc2c3FIk - missing energy (response confirmed)
+# d[id=="R_33vRD5yKc2c3FIk"]$energy <- "None of the above"
+
+# # survey id: R_3j7jocPTJApWZXu - missing fauci
+# d[id=="R_3j7jocPTJApWZXu"]$fauci <- "None of the above"
+
+# survey id: R_2zoqcnPiyzpmJga - missing fauci
+# d[id=="R_2zoqcnPiyzpmJga"]$fauci <- "None of the above"
+
+# survey id: R_1I76YKkC3bSzfJv - missing fauci
+# d[id=="R_1I76YKkC3bSzfJv"]$pollution <- "None of the above"
+# d[id=="R_1I76YKkC3bSzfJv"]$georgians <- "None of the above"
+
+# survey id: R_2asjDNe8PAuhxxh - missing fauci
+# d[id=="R_2asjDNe8PAuhxxh"]$georgians <- "None of the above"
+
+# survey id: R_d4o2OrwcVxrjEn7 - missing fauci
+# d[id=="R_d4o2OrwcVxrjEn7"]$soccer <- "None of the above"
+
+# survey id: R_8c7WtV8AzXTDACl - missing fauci
+# d[id=="R_8c7WtV8AzXTDACl"]$soccer <- "None of the above"
+####################
+# After reviewing all the missing data, it seems that the option "None of the above" wasn't registered in any of the option
+
+#d[georgians=="" & finished=="True"]$georgians <- "None of the above"
+#d[energy=="" & finished=="True"]$energy <- "None of the above"
+#d[soccer=="" & finished=="True"]$soccer <- "None of the above"
+#d[fauci=="" & finished=="True"]$fauci <- "None of the above"
+#d[pollution=="" & finished=="True"]$pollution <- "None of the above"
+#d[election=="" & finished=="True"]$election <- "None of the above"
+
+#duplicate rows
+## ONLY FOR TN
+## Respondent id-R_2dWlnlkYnG9epqt is a non-complier
+# non_compliers_tn<-c("R_0IJ2yZ90ItKq2Fb")
+# d<-d[!(id %in% non_compliers_tn),]
+
+## ONLY FOR FP and FN
+#non_compliers_fp<-0
+#paste("We found",non_compliers_fp," non-compliers")
+
+
+                        
+## Check for attrition
+# People who received the treatment and then stopped
+\
+attrition_count <- length(d[finished=="False" & tweet_submit_time!=""]$id)
+d[,attrition:= ifelse((finished=="False" & tweet_submit_time!=""), yes=1,no=0)]
+d[,dropouts:= ifelse((finished=="False" & tweet_submit_time==""), yes=1,no=0)]
+
+# People who received the treatment
+#total_responses <- length(d[tweet_submit_time!=""]$id)
+
+
+attrition_proportion=attrition_count/(total_responses+attrition_count)
+paste("We found a ", round(attrition_proportion*100, digits = 2),"% attrition.")
+
+# Remove respondents that dropped (drop out)
+respondent_drop <- which(d[,dropouts==1])
+d <- d[-respondent_drop,]
+
+
+# Save emails of raffle respondents
+# write.csv(d$email,"../data/interim/tp_emails.csv", row.names = FALSE)
+# write.csv(d$email,"../data/interim/tn_emails.csv", row.names = FALSE)
+# write.csv(d$email,"../data/interim/fp_emails.csv", row.names = FALSE)
+# write.csv(d$email,"../data/interim/fn_emails.csv", row.names = FALSE)
+
+# Data type conversion
+d$start_date <- as.Date(d$start_date, format = "%Y-%m-%d %H:%M:%s")
+d$end_date <- as.Date(d$end_date, format = "%Y-%m-%d %H:%M:%s")
+d$tweet_submit_time <- as.integer(d$tweet_submit_time)
+d$test_submit_time <- as.integer(d$test_submit_time)
+
+
+length(d[finished=="False"])
+```
+
+We can also see a histogram of time looking at the tweets and time responding the test.
+
+```{r}
+#par(mfrow=c(1,2))
+
+#h1 <- hist(d$tweet_submit_time,
+#     main = "Time reading Tweets",
+#     xlab = "seconds", 
+#     breaks = length(d$tweet_submit_time)/5)
+
+#h2<- hist(d$test_submit_time,
+#     main = "Time responding the test",
+#     xlab = "seconds", 
+#     breaks = length(d$test_submit_time)/5)
+
+
+```
+
+
+Data seems reasonably normal. Now let's remove variable that are not of interest.
+
+```{r}
+# Keep only columns of interest
+
+colnames(d)
+cols_to_remove <- c("start_date","end_date",
+                    "finished","finished_date","id","email",
+                    "tweet_first_click_time","tweet_last_click_time","tweet_click_count",
+                    "test_first_click_time","test_last_click_time","test_click_count","dropouts")
+
+
+#cols_to_drop_ix<-which(colnames(d) %in% cols_to_remove)
+
+#d[,cols_to_drop_ix]<- list(NULL)
+```
+
+Let's include the treatment columns to the data.
+
+```{r}
+## IMPORTANT Adding factors
+
+# d$truth<- as.factor("true")
+d$truth<- as.factor("false")
+
+# d$sentiment<- as.factor("positive")
+#d$sentiment<- as.factor("negative")
+
+# Correct answers for test: True information
+# d[ , bin_stimulus := ifelse(stimulus == "Green House Gases", yes = 1, no = 0)]
+# d[ , bin_georgians := ifelse(georgians == "None of the above", yes = 1, no = 0)]
+# d[ , bin_energy := ifelse(energy == "Natural Gas", yes = 1, no = 0)]
+# d[ , bin_soccer := ifelse(soccer == "Unknown", yes = 1, no = 0)]
+# d[ , bin_fauci := ifelse(fauci == "National Geographic Society", yes = 1, no = 0)]
+# d[ , bin_pollution := ifelse(pollution == "6th largest", yes = 1, no = 0)]
+# d[ , bin_election := ifelse(election == "2024", yes = 1, no = 0)]
+
+
+
+# # Correct answers for test: False information
+d[ , bin_stimulus := ifelse(stimulus == "Green House Gases", yes = 1, no = 0)]
+d[ , bin_georgians := ifelse(georgians == "70", yes = 1, no = 0)]
+d[ , bin_energy := ifelse(energy == "Wind", yes = 1, no = 0)]
+d[ , bin_soccer := ifelse(soccer == "Pfizer vaccine", yes = 1, no = 0)]
+d[ , bin_fauci := ifelse(fauci == "None of the above", yes = 1, no = 0)]
+d[ , bin_pollution := ifelse(pollution == "1st largest", yes = 1, no = 0)]
+d[ , bin_election := ifelse(election == "2024", yes = 1, no = 0)]
+
+d$total_correct <- d%>% select(c("bin_stimulus", "bin_georgians","bin_energy","bin_soccer","bin_fauci","bin_pollution", "bin_election")) %>% rowSums()
+
+```
+
+We can see the distribution of correct answers.
+
+```{r}
+
+h3 <- hist(d[attrition!=1]$total_correct,
+     main = "Correct answers distribution (max 7)",
+     xlab = "correct answers", 
+     breaks = length(d$total_correct)/4)
+
+```
+
+Now we can save the file for future reference and stacking.
+
+```{r}
+# Save to CSV
+# write.csv(d,"../data/interim/tp_data.csv", row.names = FALSE)
+# write.csv(d,"../data/interim/tn_data.csv", row.names = FALSE)
+# write.csv(d,"../data/interim/fp_data.csv", row.names = FALSE)
+# write.csv(d,"../data/interim/fn_data.csv", row.names = FALSE)
+```
+
+Finally, we can stack all of the individual files.
+
+```{r}
+
+files <- c("tp_data.csv","tn_data.csv","fp_data.csv","fn_data.csv")
+#Ordered in order to stack them based on factos (False=0, Positive=0, True=1, Negative=1)
+
+df_fp<-data.table::fread("../data/interim/fp_data.csv")
+df_fn<-data.table::fread("../data/interim/fn_data.csv")
+df_tp<-data.table::fread("../data/interim/tp_data.csv")
+df_tn<-data.table::fread("../data/interim/tn_data.csv")
+
+
+
+#df<-rbind(df_tp,df_tn,df_fp,df_fn)
+
+#write.csv(df,"../data/processed/tweets_data.csv", row.names = FALSE)
+
+```
+
+START HERE: Let's confirm data was saved properly
+
+```{r}
+df<-data.table::fread("../data/processed/tweets_data.csv")
+df$truth_f <- as.factor(df$truth)
+df$sentiment_f <- as.factor(df$sentiment)
+df$age_f <- as.factor(df$age)
+df$education_f <- as.factor(df$education)
+df$gender_f <- as.factor(df$gender)
+df[ truth == 'fact' & sentiment == 'positive', treatment_group := 'TP'] 
+df[ truth == 'fact' & sentiment == 'negative', treatment_group := 'TN'] 
+df[ truth == 'fake' & sentiment == 'positive', treatment_group := 'FP'] 
+df[ truth == 'fake' & sentiment == 'negative', treatment_group := 'FN'] 
+df$treatment_group_f <- as.factor(df$treatment_group)
+
+df_tp <- df[ truth == 'fact' & sentiment == 'positive', ]
+df_tn <- df[ truth == 'fact' & sentiment == 'negative', ]
+df_fp <- df[ truth == 'fake' & sentiment == 'positive', ]
+df_fn <- df[ truth == 'fake' & sentiment == 'negative', ]
+
+```
+
+```{r}
+tail(df)
+```
+
+
+```{r}
+par(mfrow=c(2,3))
+
+plot(df$age_f, main='Age - Overall.')
+plot(df$education_f, main='Educ. - Overall.')
+plot(df$gender_f, main='Gender - Overall.')
+plot(as.factor(df$treatment_group), main='Treatment Group.')
+hist(df$total_correct, main='Total Corr. - Overall', xlab='Total Correct')
+```
+```{r}
+#par(mfrow=c(1,2))
+
+#qplot(df$total_correct, 
+#      geom="histogram",
+#      main = "Histogram: Total Correct Count",
+#      xlab = "Correct Response Count(max = 7)",
+#      ylab = "Occurrence Count",
+#      fill = I("grey"),
+#      col = I("blue"),
+#      xlim=c(NA,8)) 
+
+g1 <- ggplot(df, aes(x=age_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue"))+
+  ggtitle("Age") +
+  xlab("Age Bucket") + ylab("Count")
+g2 <- ggplot(df, aes(x=education_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Education Level") +
+  xlab("Highest Level") + ylab("Count")
+g3 <- ggplot(df, aes(x=gender_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Gender") +
+  xlab("Gender") + ylab("Count")
+g4 <- ggplot(df, aes(x=total_correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Total Correct") +
+  xlab("Correct Responses") + ylab("Count")
+grid.arrange(g1, g2, g3, g4, nrow = 2)
+#plot(df$education_f, main='Educ. - Overall.')
+#plot(df$gender_f, main='Gender - Overall.')
+#plot(as.factor(df$treatment_group), main='Treatment Group.')
+#hist(df$total_correct, main='Total Corr. - Overall', xlab='Total Correct')
+```
+```{r}
+g0 <- ggplot(df, aes(x=total_correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Overall - Total Correct") +
+  xlab("Correct Responses") + ylab("Count")
+g1 <- ggplot(df_tp, aes(x=total_correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue"))+
+  ggtitle("True-Positive") +
+  xlab(NULL) + ylab("Count")
+g2 <- ggplot(df_tn, aes(x=total_correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("True-Negative") +
+  xlab(NULL) + ylab(NULL)
+g3 <- ggplot(df_fp, aes(x=total_correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Fake-Positive") +
+  xlab("Correct Responses") + ylab("Count")
+g4 <- ggplot(df_fn, aes(x=total_correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Fake-Negative") +
+  xlab("Correct Responses") + ylab(NULL)
+
+grid.arrange(g0, g1, g2, g3, g4, widths = c(2.5, 1.5, 1.5),
+  layout_matrix = rbind(c(1, 2, 3), 
+                        c(1, 4, 5)))
+
+```
+
+```{r}
+a0 <- ggplot(df, aes(x=age_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Overall - Age Bucket") +
+  xlab("Age Bucket") + ylab("Count")
+a1 <- ggplot(df_tp, aes(x=age_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue"))+
+  ggtitle("True-Positive") +
+  xlab(NULL) + ylab("Count")
+a2 <- ggplot(df_tn, aes(x=age_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("True-Negative") +
+  xlab(NULL) + ylab(NULL)
+a3 <- ggplot(df_fp, aes(x=age_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Fake-Positive") +
+  xlab("Age Bucket") + ylab("Count")
+a4 <- ggplot(df_fn, aes(x=age_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Fake-Negative") +
+  xlab("Age Bucket") + ylab(NULL)
+
+grid.arrange(a0, a1, a2, a3, a4, widths = c(2, 1, 1),
+  layout_matrix = rbind(c(1, 2, 3), 
+                        c(1, 4, 5)))
+
+```
+```{r}
+gdr0 <- ggplot(df, aes(x=gender_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Overall - Gender") +
+  xlab("Gendert") + ylab("Count")
+gdr1 <- ggplot(df_tp, aes(x=gender_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue"))+
+  ggtitle("True-Positive") +
+  xlab(NULL) + ylab("Count")
+gdr2 <- ggplot(df_tn, aes(x=gender_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("True-Negative") +
+  xlab(NULL) + ylab(NULL)
+gdr3 <- ggplot(df_fp, aes(x=gender_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Fake-Positive") +
+  xlab("Gender") + ylab("Count")
+gdr4 <- ggplot(df_fn, aes(x=gender_f)) +
+  geom_bar( fill = I("grey"),
+      col = I("blue")) +
+  ggtitle("Fake-Negative") +
+  xlab("Gender") + ylab(NULL)
+
+grid.arrange(gdr0, gdr1, gdr2, gdr3, gdr4, widths = c(2, 1, 1),
+  layout_matrix = rbind(c(1, 2, 3), 
+                        c(1, 4, 5)))
+```
+```{r}
+par(mfrow=c(2,2))
+plot(df_tp$education_f, main='Education True-Pos.')
+plot(df_tn$education_f, main='Education True-Neg.')
+plot(df_fp$education_f, main='Education Fake-Pos.')
+plot(df_fn$education_f, main='Education Fake-Neg.')
+
+```
+
+
+```{r}
+# df[ , t.test(as.factor(df$treatment_group) ~ total_correct)]
+```
+
+```{r}
+# d[ ,  chisq.test(x3, treat)]
+```
+
+```{r}
+null_mod <- df[ , lm(total_correct ~ 1)]
+summary(null_mod)
+```
+
+```{r}
+full_mod <- df[ , lm(total_correct ~ 1 + truth_f + sentiment_f )]
+summary(full_mod)
+```
+
+
+```{r}
+m1 <- lm(total_correct ~ truth_f + sentiment_f, data = df)
+m1a <- lm(total_correct ~ truth_f * sentiment_f, data = df)
+m2 <- lm(total_correct ~ truth_f + sentiment_f + truth_f*sentiment_f, data = df)
+m3 <- lm(total_correct ~ sentiment_f, data = df)
+m4 <- lm(total_correct ~ truth_f, data = df)
+stargazer(m1,m2,m3, m4, 
+          type = "text" ) 
+```
+
+```{r}
+mv1 <- anova(m1, m1a, test = 'F')
+mv1
+```
+
+```{r}
+mv2 <- anova(m1, m2, test = 'F')
+mv2
+```
+```{r}
+mv3 <- anova(null_mod, full_mod, test = 'F')
+mv3
+```
