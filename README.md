@@ -25,11 +25,5 @@ Understand if people's memory is affected after exposed to a controlled tweet po
     |
     ├── notebooks          <- .Rmd notebooks. 
     │
-    ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-    │
-    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-    │
-    └── src                <- Source code for use in this project.
-        │
-        └── data           <- Scripts to download or generate data
+    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc. Our deck and final paper.
 --------
