@@ -18,7 +18,7 @@ library(stargazer)                      # for printing tables
 theme_set(theme_classic())
 # Set working directory
 # setwd("C:/Users/Zaptetra/Google Drive/MIDS/W241/w241_final_project/notebooks")
-knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 6, fig.height = 6)
 ```
 
 ## The raw data
@@ -296,6 +296,7 @@ plot(df$gender_f, main='Gender - Overall.')
 plot(as.factor(df$treatment_group), main='Treatment Group.')
 hist(df$total_correct, main='Total Corr. - Overall', xlab='Total Correct')
 ```
+
 ```{r}
 #par(mfrow=c(1,2))
 
@@ -488,12 +489,50 @@ grid.arrange(gdr0, gdr1, gdr2, gdr3, gdr4, widths = c(2, 1, 1),
 ```{r}
 d_pilot_questions <- data.table::fread('../data/processed/pilot_questions_responses.csv')
 ```
-```{r}
+```{r plot pilot count by question}
 ggplot(data=d_pilot_questions, aes(x=questions, y=correct, fill=treatment_group)) +
-  geom_bar(stat='identity', position = position_dodge(), alpha=0.8) +
+  geom_bar(stat='identity', position = position_dodge(), alpha=0.7, width=0.7) +
   scale_x_discrete(limits = c('1','2','3','4','5','6','7')) +
   scale_y_discrete(limits = c('1','2','3','4','5','6','7')) +
   labs(title = "Pilot Correct Count by Question", y='Correct Count', x='Question') +
   theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r plots histograms for pilot}
+
+g1 <- ggplot(d_pilot_questions[treatment_group=="TP", ], aes(x=correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("black"))+
+  ggtitle("True-Positive Correct Count") +
+  xlab("Correct Response Count") + ylab("Frequency") 
+
+g2 <- ggplot(d_pilot_questions[treatment_group=="FP", ], aes(x=correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("black"))+
+  ggtitle("False-Positive Correct Count") +
+  xlab("Correct Response Count") + ylab("Frequency") 
+
+g3 <- ggplot(d_pilot_questions[treatment_group=="TN", ], aes(x=correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("black"))+
+  ggtitle("True-Negative Correct Count") +
+  xlab("Correct Response Count") + ylab("Frequency") 
+
+g4 <- ggplot(d_pilot_questions[treatment_group=="FN", ], aes(x=correct)) +
+  geom_bar( fill = I("grey"),
+      col = I("black"))+
+  ggtitle("False-Negative Correct Count") +
+  xlab("Correct Response Count") + ylab("Frequency") 
+
+total_cor <- d_pilot_questions[ , .(total_correct=sum(correct)), by=.(questions)]
+
+g0 <- ggplot(d_pilot_questions, aes(x=correct)) +
+  geom_bar(fill = I("grey"),
+      col = I("black")) +
+  ggtitle("Pilot Oveall Total Correct Count") +
+  xlab("Correct Response Count") + ylab("Frequency") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+grid.arrange(g1, g2, g3, g4, nrow = 2)
 ```
 
