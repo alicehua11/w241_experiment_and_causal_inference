@@ -22,8 +22,6 @@ Understand if people's memory is affected after exposed to a controlled tweet po
     │   ├── interim        <- Intermediate data that has been transformed.
     │   ├── processed      <- The final, canonical data sets for modeling.
     │   └── raw            <- The original, immutable data dump.
-    |
     ├── notebooks          <- .Rmd notebooks. 
-    │
-    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc. Our deck and final paper.
+    ├── reports            <-  Our deck and final paper.
 --------
